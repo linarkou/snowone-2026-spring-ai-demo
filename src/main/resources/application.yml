@@ -1,0 +1,86 @@
+spring:
+  application:
+    name: spring-ai-snowone
+  profiles:
+    active: chat-ollama,embedding-ollama
+#    active: gigachat
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  datasource:
+    url: jdbc:postgresql://localhost:5432/vectordb
+    username: postgres
+    password: postgres
+  ai:
+    model:
+      audio.speech: none
+      audio.transcription: none
+      image: none
+      moderation: none
+    mcp:
+      client:
+        stdio:
+          connections:
+            macos-notification-mcp:
+              command: uvx
+              args:
+                - macos-notification-mcp
+            github-gist-create:
+              command: node
+              args:
+                - ${MCP_GIST_SERVER_PATH}
+              env:
+                GITHUB_GIST_TOKEN: ${GITHUB_GIST_TOKEN}
+
+    vectorstore:
+      pgvector:
+        index-type: hnsw
+        distance-type: cosine_distance
+        dimensions: 768
+#        dimensions: 1024
+#        dimensions: 1536
+#        dimensions: 2000
+        initialize-schema: true
+        schema-name: public
+        table-name: vector_store
+
+stackoverflow:
+  rag:
+    enabled: true
+    tag: java                    # Теги для фильтрации вопросов (java, spring, и т.д.); можно указать несколько через запятую
+    initial-load-count: 1000     # Начальная загрузка топовых вопросов
+    daily-fresh-count: 20        # Количество свежих вопросов для ежедневной загрузки
+    page-size: 100               # Размер страницы для пагинации (макс для StackOverflow API)
+    chunk-size: 1000             # Размер чанка для эмбеддинга
+#    chunk-size: 200
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+
+vaadin:
+  launch-browser: true
+
+logging:
+  level:
+    org.springframework.ai.chat.client: DEBUG
+    org.springframework.ai.chat.client.advisor: DEBUG
+    io.github.linarkou.snowone: DEBUG
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{spanId:-}] "

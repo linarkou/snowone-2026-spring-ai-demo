@@ -1,0 +1,11 @@
+spring:
+  ai:
+    model:
+      chat: ollama
+    ollama:
+      chat:
+        model: qwen3-coder:30b
+        options:
+          temperature: 0.5
+      init:
+        pull-model-strategy: when_missing

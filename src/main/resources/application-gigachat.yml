@@ -1,0 +1,17 @@
+spring:
+  ai:
+    model:
+      chat: gigachat
+      embedding: gigachat
+    gigachat:
+      auth:
+        bearer:
+          api-key: ${GIGACHAT_API_KEY}
+        scope: ${GIGACHAT_API_SCOPE}
+        unsafe-ssl: true
+      chat:
+        options:
+          model: GigaChat-2-Max
+      embedding:
+        options:
+          model: Embeddings-2

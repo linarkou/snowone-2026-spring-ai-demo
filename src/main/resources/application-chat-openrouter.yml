@@ -1,0 +1,10 @@
+spring:
+  ai:
+    model:
+      chat: openai
+    openai:
+      base-url: https://openrouter.ai/api/
+      api-key: ${OPENROUTER_API_KEY}
+      chat:
+        model: mistralai/devstral-2512:free
+#        model: qwen/qwen3-coder:free
