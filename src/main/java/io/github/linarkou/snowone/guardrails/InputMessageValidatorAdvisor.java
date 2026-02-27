@@ -7,8 +7,12 @@ import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.AdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.BaseAdvisor;
 import org.springframework.ai.chat.messages.MessageType;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
 /**
@@ -18,47 +22,14 @@ import java.util.stream.Collectors;
 @Component
 public class InputMessageValidatorAdvisor implements BaseAdvisor {
 
-    public static final Integer ORDER = DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER + 1;
-
-    private static final String VALIDATION_PROMPT = """
-            Ты - валидатор входящих сообщений для AI-ассистента по Java-разработке.
-
-            Твоя задача - определить, относится ли переписка пользователя MESSAGE_HISTORY к Java-разработке.
-            Переписка пользователя описана в блоке MESSAGE_HISTORY.
-
-            Разрешенные темы:
-            - Программирование на Java
-            - Spring Framework (Spring Boot, Spring Data, Spring Security и т.д.)
-            - Java библиотеки и фреймворки
-            - JVM, GraalVM, настройки производительности
-            - Базы данных в контексте Java (JDBC, JPA, Hibernate)
-            - Инструменты разработки (Maven, Gradle, IntelliJ IDEA)
-            - Паттерны проектирования в Java
-            - Тестирование Java приложений
-            - Архитектура Java приложений
-
-            Запрещенные темы:
-            - Другие языки программирования (Python, JavaScript, C++, и т.д.)
-            - Общие вопросы не связанные с программированием
-            - Личные вопросы
-            - Политика, новости, развлечения
-            - Любые темы не связанные с Java-разработкой
-
-            Ответь ТОЛЬКО одним словом:
-            - "VALID" - если вопрос относится к Java-разработке
-            - "INVALID" - если вопрос не относится к Java-разработке
-
-            MESSAGE_HISTORY:
-            %s
-
-            Твой ответ (VALID или INVALID):
-            """;
-
     private final ChatClient validationChatClient;
+    private final String validationPrompt;
 
-    public InputMessageValidatorAdvisor(ChatClient.Builder chatClientBuilder) {
+    public InputMessageValidatorAdvisor(ChatClient.Builder chatClientBuilder,
+                                        @Value("classpath:prompts/validation-prompt.txt") Resource promptResource) throws IOException {
         // Создаем отдельный ChatClient для валидации (без advisors)
         this.validationChatClient = chatClientBuilder.build();
+        this.validationPrompt = promptResource.getContentAsString(StandardCharsets.UTF_8);
         log.info("InputMessageValidator initialized");
     }
 
@@ -70,7 +41,6 @@ public class InputMessageValidatorAdvisor implements BaseAdvisor {
                         || msg.getMessageType().equals(MessageType.ASSISTANT))
                 .map(msg -> "- " + msg.getMessageType().getValue() + ": `" + msg.getText() + "`")
                 .collect(Collectors.joining("\n\n"));
-
 
         if (messageHistory.trim().isEmpty()) {
             return chatClientRequest; // Пустые сообщения пропускаем
@@ -92,10 +62,10 @@ public class InputMessageValidatorAdvisor implements BaseAdvisor {
         log.debug("Validating user message");
 
         try {
-            String validationPrompt = String.format(VALIDATION_PROMPT, input);
+            String prompt = String.format(this.validationPrompt, input);
 
             String validationResponse = validationChatClient.prompt()
-                    .user(validationPrompt)
+                    .user(prompt)
                     .call()
                     .content();
 
@@ -132,7 +102,7 @@ public class InputMessageValidatorAdvisor implements BaseAdvisor {
 
     @Override
     public int getOrder() {
-        return ORDER;
+        return DEFAULT_CHAT_MEMORY_PRECEDENCE_ORDER + 1;
     }
 
     /**
